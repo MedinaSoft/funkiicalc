@@ -25,11 +25,11 @@
 ** IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.                                    **
 \************************************************************************************/
 /**
-*   $Rev: 1 $
-*   $LastChangedDate: 2011-02-23 10:42:19 -0800 (Thu, 23 Feb 2011) $
+*   $Rev$
+*   $LastChangedDate$
 */
-#ifndef _MY_CALC_H_
-#define _MY_CALC_H_
+#ifndef _FUNKII_CALC_H_
+#define _FUNKII_CALC_H_
 
 /* INCLUDES! */
 #include <cerrno>
@@ -53,31 +53,66 @@ using namespace std;
 
 
 /* GLOBALS! */
-#ifdef CALC_DEBUG
+#ifdef CALC_DEBUG_CONSOLE
+    #define C_DBG_INIT
     #define C_DBG_START printf("(Line %i):%s:(begin)\n",__LINE__,__FUNCTION__);
-    #define C_DBG_MSG(...) do{\
-        printf(__VA_ARGS__);\
-        printf("\n");\
+    #define C_DBG_MSG(...) \
+        do{\
+            printf(__VA_ARGS__);\
+            printf("\n");\
         } while(0);
     #define C_DBG_END printf("(Line %i):%s:(end)\n",__LINE__,__FUNCTION__);
+    #define C_DBG_FINISH
+#elif defined(CALC_DEBUG_FILE)
+    #include <time.h>
+    FILE *calc_debug;
+    clock_t calc_t_init;
+    #define C_DBG_INIT \
+        do { \
+            calc_t_init = clock();\
+            calc_debug = fopen("calc_debug.log","a+"); \
+            fprintf(calc_debug, "=================================================\n");\
+            fprintf(calc_debug, "   Session Start %s :: %s\n", __DATE__, __TIME__);\
+            fprintf(calc_debug, "=================================================\n");\
+        } while(0);
+    #define C_DBG_START fprintf(calc_debug, "(Line %i):%s:(begin)\n", __LINE__, __FUNCTION__);
+    #define C_DBG_MSG(...) \
+        do {\
+            fprintf(calc_debug, __VA_ARGS__);\
+            fprintf(calc_debug, "\n");\
+        } while(0);
+    #define C_DBG_END fprintf(calc_debug, "(Line %i):%s:(end)\n",__LINE__,__FUNCTION__);
+    #define C_DBG_FINISH \
+        do { \
+            fprintf(calc_debug, "=================================================\n");\
+            double calc_t_end = (clock() - calc_t_init);\
+            calc_t_end /= CLOCKS_PER_SEC;\
+            fprintf(calc_debug, "   Session End :: Elapsed time: %Gs\n", calc_t_end);\
+            fprintf(calc_debug, "=================================================\n\n\n");\
+            fclose(calc_debug);\
+        } while (0);
 #else
+    #define C_DBG_INIT
     #define C_DBG_START
     #define C_DBG_MSG(...)
     #define C_DBG_END
+    #define C_DBG_FINISH
 #endif
 
 #define PI  3.1415926535897932384626433832795
 #define EXP 2.7182818284590452353602874713527
 
-enum EasyCalcOptions_t {
+enum FunkiiCalcOptions_t {
     calc_formula        =   1 << 0, //Display the formula with the results
-    calc_noerror        =   1 << 1, //Do not show error msg
-    calc_noformat       =   1 << 2, //Do not Comma Separate (i.e from 1000 to 1,000)
-    calc_numtruefalse   =   1 << 3, //Represent True/False as Number not text
+    calc_noresult       =   1 << 1, //Do not output the result (maybe you want the formula only)
+    calc_noerror        =   1 << 2, //Do not show error msg
+    calc_noformat       =   1 << 3, //Do not Comma Separate (i.e from 1000 to 1,000)
+    calc_numtruefalse   =   1 << 4, //Represent True/False as Number not text
+    calc_formulaonly    =   calc_formula | calc_noresult, //Only the formula
 
     calc_default        =   0       //Default Options
 };
-enum EasyCalcErrors_t {
+enum FunkiiCalcErrors_t {
         CE_NADA             =   0,
         CE_EMPTY            =   1,
         CE_SYNTAX           =   2,
@@ -228,10 +263,10 @@ public:
      *
      *  Returns the result as a std::string with specified options
      *
-     *  @param  enum EasyCalcOptions_t
+     *  @param  enum FunkiiCalcOptions_t
      *  @return string
      */
-    string result_s(enum EasyCalcOptions_t);
+    string result_s(enum FunkiiCalcOptions_t);
     /**
      * result_c_str
      *
@@ -245,7 +280,7 @@ public:
      *
      * @return  (char *)        NULL terminated string containing Result of Formula or Error message.
      */
-    char *result_c_str(enum EasyCalcOptions_t);
+    char *result_c_str(enum FunkiiCalcOptions_t);
     /**
      * result_d
      *
@@ -306,7 +341,7 @@ public:
      */
     string duration(int);
 private:
-    enum EasyCalcErrors_t mError;   /* Error String. */
+    enum FunkiiCalcErrors_t mError;   /* Error String. */
     long double mResult;        /* Result of the Formula. */
     string mFormula;            /* Sanity Checked Formula. */
             /* Comparison Global Vars */
@@ -333,10 +368,10 @@ private:
      *
      *  Returns string equivalent of error number
      *
-     *  @param   enum EasyCalcErrors_t
+     *  @param   enum FunkiiCalcErrors_t
      *  @result string
      */
-    string get_error_string(enum EasyCalcErrors_t);
+    string get_error_string(enum FunkiiCalcErrors_t);
     /**
      * parse_vars
      *
@@ -477,19 +512,20 @@ const char *Calc::func_array[] = {  "sqrt", "floor","ceil", "sin",  "cos",
                                     "fabs", "bin",  "oct",  "hex",  "round",
                                     "fact"
                                 };
-Calc::Calc() { C_DBG_START; assign("0"); C_DBG_END; }
+Calc::Calc() {  assign("0"); }
 Calc::Calc(string formula) { assign(formula); }
 Calc::Calc(int number) { assign(number); }
 Calc::Calc(float number) { assign(number); }
 Calc::Calc(double number) { assign(number); }
 Calc::Calc(long double number) { assign(number); }
 Calc::~Calc() { }
-void Calc::assign(string formula) { C_DBG_START; calcthis(formula); C_DBG_END; }
-void Calc::assign(int number) { C_DBG_START; stringstream ss; ss << number; calcthis(ss.str()); C_DBG_END; }
-void Calc::assign(float number) { C_DBG_START; stringstream ss; ss << number; calcthis(ss.str()); C_DBG_END; }
-void Calc::assign(double number) { C_DBG_START; stringstream ss; ss << setprecision(15) << number; calcthis(ss.str()); C_DBG_END; }
-void Calc::assign(long double number) { C_DBG_START; stringstream ss; ss << setprecision(15) << number; calcthis(ss.str()); C_DBG_END; }
+void Calc::assign(string formula) { calcthis(formula); }
+void Calc::assign(int number) { stringstream ss; ss << number; calcthis(ss.str()); }
+void Calc::assign(float number) { stringstream ss; ss << number; calcthis(ss.str()); }
+void Calc::assign(double number) { stringstream ss; ss << setprecision(15) << number; calcthis(ss.str()); }
+void Calc::assign(long double number) { stringstream ss; ss << setprecision(15) << number; calcthis(ss.str()); }
 void Calc::calcthis(string formula) {
+    C_DBG_INIT;
     C_DBG_START;
     mError = CE_NADA; mFormula.clear(); mResult=0; mIsCompare=false;
     if ( syntax(formula) ) {
@@ -509,6 +545,7 @@ void Calc::calcthis(string formula) {
         else { mResult = calculate(mFormula,0,0); }
     }
     C_DBG_END;
+    C_DBG_FINISH;
 }
 string Calc::parse_vars(int found, string formula) {
     C_DBG_START;
@@ -811,33 +848,34 @@ void Calc::checkandcompare(string formula) {
     if (tmpcmp) { mResult = 1; }
     else { mResult = 0; }
 }
-string Calc::result_s() { enum EasyCalcOptions_t nada = calc_default; return result_s(nada); }
-string Calc::result_s(enum EasyCalcOptions_t Options) {
-    C_DBG_START;
-    if ((mError != CE_NADA) && !(Options & calc_noerror)) { C_DBG_END; return get_error_string(mError); }
+string Calc::result_s() { enum FunkiiCalcOptions_t nada = calc_default; return result_s(nada); }
+string Calc::result_s(enum FunkiiCalcOptions_t Options) {
+    if ((mError != CE_NADA) && !(Options & calc_noerror)) { return get_error_string(mError); }
     else {
+        string res;
         if (mIsCompare) {
-            string cres;
-            if (Options & calc_formula) { cres = mOutput + " :: "; }
-            if (Options & calc_numtruefalse) { cres += (mResult == 1 ? "1" : "0"); }
-            else { cres += (mResult == 1 ? "true" : "false"); }
-            C_DBG_END;
-            return cres;
+            if (Options & calc_formula) { res = mOutput; }
+            if (!(Options & calc_noresult)) {
+                if (Options & calc_formula) { res += " :: "; }
+                if (Options & calc_numtruefalse) { res += (mResult == 1 ? "1" : "0"); }
+                else { res += (mResult == 1 ? "true" : "false"); }
+            }
         }
         else {
             stringstream ss;
-            string res;
             ss << setprecision(15) << mResult;
-            if (Options & calc_formula) { res = mFormula + " = "; }
-            if (Options & calc_noformat) { res += ss.str(); }
-            else { res += format(ss.str()); }
-            C_DBG_END;
-            return res;
+            if (Options & calc_formula) { res = mFormula; }
+            if (!(Options & calc_noresult)) {
+                if (Options & calc_formula) { res += " = "; }
+                if (Options & calc_noformat) { res += ss.str(); }
+                else { res += format(ss.str()); }
+            }
         }
+        return res;
     }
 }
-char *Calc::result_c_str() { enum EasyCalcOptions_t nada = calc_default; return result_c_str(nada); }
-char *Calc::result_c_str(enum EasyCalcOptions_t Options) { return (char *)result_s(Options).c_str(); }
+char *Calc::result_c_str() { enum FunkiiCalcOptions_t nada = calc_default; return result_c_str(nada); }
+char *Calc::result_c_str(enum FunkiiCalcOptions_t Options) { return (char *)result_s(Options).c_str(); }
 long double Calc::result_d() {
     if (mError == CE_NADA) { return mResult; }
     else { return 0; }
@@ -973,9 +1011,7 @@ bool Calc::IsValidNum(string n) {
 
 int Calc::isFunc(string in) {
     C_DBG_START;
-
     int num = (int)((sizeof(func_array)/sizeof(char *)) - 1), ret=0;
-    //int num = 20, ret=0;
     while (num >= 0) {
         if (in.compare(func_array[num]) == 0) { ret = (num + 1); break; }
         num--;
@@ -1062,32 +1098,29 @@ long double Calc::calculate(string formula, int level = 0, int oper_func = 0) {
 	                    else { s.push_back(c); }
 	                }
 	                else if (p == 0) {
-	                        C_DBG_MSG("p==0 begin SWITCH");
-	                        switch(c) {
-	                            case '>':
-	                            case '<': i++;
-	                            case '^':
-	                            case '%':
-	                            case '/':
-                                case '*': oper[op] = c; op++; record = true; break;
-	                            case '+': {
-	                                        if (is_e) { s.push_back(c); is_e = false; }
-	                                        else { oper[op] = c; op++; record = true; }
-	                                      } break;
-	                            case '-': {
-	                                        if (is_e) { s.push_back(c); is_e = false; }
-	                                        else if (i == 0 || (op > 0 && (oper[op-1].at(0) == formula.at(i-1)))) { s.push_back(c); neg = true; }
-	                                        else if (!s.empty() &&
-	                                                (s.at(s.length() - 1) == '^' || s.at(s.length() - 1) == '%' ||
-	                                                s.at(s.length() - 1) == '/' || s.at(s.length() - 1) == '*' ||
-                                                    s.at(s.length() - 1) == '<' || s.at(s.length() - 1) == '>'
-                                                  )
-                                                  )  { s.push_back(c); }
-	                                        else { oper[op] = c; op++; record = true; }
-	                                      } break;
-	                            default: s.push_back(c); break;
-	                        }
-	                        C_DBG_MSG("p==0 end SWITCH");
+                        switch(c) {
+                            case '>':
+	                        case '<': i++;
+	                        case '^':
+	                        case '%':
+	                        case '/':
+                            case '*': oper[op] = c; op++; record = true; break;
+	                        case '+': {
+                                        if (is_e) { s.push_back(c); is_e = false; }
+	                                    else { oper[op] = c; op++; record = true; }
+                                    } break;
+                            case '-': {
+                                        if (is_e) { s.push_back(c); is_e = false; }
+                                        else if (i == 0 || (op > 0 && (oper[op-1].at(0) == formula.at(i-1)))) { s.push_back(c); neg = true; }
+	                                    else if (!s.empty() &&
+                                                (s.at(s.length() - 1) == '^' || s.at(s.length() - 1) == '%' ||
+                                                s.at(s.length() - 1) == '/' || s.at(s.length() - 1) == '*' ||
+                                                s.at(s.length() - 1) == '<' || s.at(s.length() - 1) == '>'
+                                                ))  { s.push_back(c); }
+                                        else { oper[op] = c; op++; record = true; }
+                                    } break;
+                            default: s.push_back(c); break;
+                        }
 	                }
 	                else { s.push_back(c); }
 	            }
@@ -1115,11 +1148,28 @@ long double Calc::calculate(string formula, int level = 0, int oper_func = 0) {
                     }
                 }
                 C_DBG_MSG("op: %d\to: %d\tlevel: %d\tjuntar: %s",(op-1),o,level,(juntar ? "true" : "false"));
-
                 if (juntar) {
                     if (op > o) {
                         op--;
-                        if (oper[op].at(0) == '<' || oper[op].at(0) == '>') { s.push_back(c); }
+                        if (oper[op].at(0) == '<' || oper[op].at(0) == '>') {
+                            //we need to check if it's a bitshift to prepend the operations 1 << 2 << 3 should be (1 << 2) << 3
+                            if(oper[(op-1)].at(0) == '<' || oper[(op-1)].at(0) == '>') {
+                                o--; op--;
+                                string tmpops;
+                                if (is_f[o] > 0) { tmpops = func_array[(is_f[o] - 1)]; is_f[o] = -1; }
+                                tmpops += "("; tmpops += operations[o]; tmpops += ")";
+                                if (oper[op].at(0) == '<' || oper[op].at(0) == '>') { tmpops += oper[op]; }
+                                tmpops += oper[op];
+                                tmpops += "("; tmpops += s; tmpops += ")";
+                                operations[o] = tmpops;
+                                oper_flags[o] = level + 1;
+                                oper[op] = oper[(op + 1)];
+                                s.clear(); op++; o++;
+                                C_DBG_MSG("\t\tFound something![op: %d][o: %d].. %s %s %s [%s] :: %s",op,o,operations[o].c_str(),oper[op].c_str(),operations[(o+1)].c_str(),s.c_str(),tmpops.c_str());
+                                continue;
+                            }
+                            else { s.push_back(c); }
+                        }
                         s.push_back(c); continue;
                     }
                     else {
@@ -1158,7 +1208,7 @@ long double Calc::calculate(string formula, int level = 0, int oper_func = 0) {
                                 else { res = res / tmp; }
                             }
                         } break;
-                case '^': res = pow(res,tmp); break;
+                case '^': res = powl(res,tmp); break;
                 case '>':
                 case '<': {
                             if( (res - floor(res)) == 0 ) {
@@ -1210,16 +1260,16 @@ long double Calc::calculate(string formula, int level = 0, int oper_func = 0) {
 }
 long double Calc::bin2dec(string num) {
     long double ret = 0;
-    C_DBG_MSG("BIN to DEC :: %s",num.c_str());
     for(int z = num.length() - 1; z >= 0; z--) {
         if (num.at(z) == '0') { continue; }
-        else if (num.at(z) == '1') { ret += pow(2, (long double)((num.length() - 1) - z)); }
+        else if (num.at(z) == '1') { ret += powl((long double)2, (long double)((num.length() - 1) - z)); }
         else {
             mError = CE_BIN;
             ret = 0;
             break;
         }
     }
+    C_DBG_MSG("BIN to DEC :: '%s' :: '%LG'",num.c_str(),ret);
     return ret;
 }
 long double Calc::oct2dec(string num) {
@@ -1239,7 +1289,7 @@ long double Calc::oct2dec(string num) {
             default: { mError = CE_OCT; ret = 0; oct = -1; }
         }
         if (oct == -1) { break; }
-        else { ret += oct * pow(8,(long double)((num.length() - 1) - z)); }
+        else { ret += oct * powl((long double)8,(long double)((num.length() - 1) - z)); }
     }
     return ret;
 }
@@ -1268,7 +1318,7 @@ long double Calc::hex2dec(string num) {
             default: { mError = CE_HEX; ret = 0; nhex = -1; }
         }
         if (nhex == -1) { break; }
-        else { ret += nhex * pow(16,(long double)((num.length() - 1) - z)); }
+        else { ret += nhex * powl((long double)16,(long double)((num.length() - 1) - z)); }
     }
     return ret;
 }
@@ -1279,7 +1329,7 @@ long double Calc::factorial(long double num) {
     else { ret = 1; for (int i = 0; i <= num; i++) { ret*=i; } }
     return ret;
 }
-string Calc::get_error_string(enum EasyCalcErrors_t n) {
+string Calc::get_error_string(enum FunkiiCalcErrors_t n) {
     string e;
     if (n != CE_NADA) {
         e = "[CALC] Error: ";

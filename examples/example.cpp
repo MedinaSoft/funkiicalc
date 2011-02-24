@@ -11,6 +11,7 @@ int main() {
     **      - Formula 1: is a simple multiplication
     **      - Formula 2: has an Error (can you see it?)
     **      - Formula 3: is an example of a formula with defined Vars
+    **      - Formula 4: is an example of a Comparison
     */
     string f1("6.47*19.5"), f2("(((389,945.55 * 0.50) * 0.25) * 0.10");
     string f3("a=12,b=32;sqrt(a^2 + b^2)"), f4("10 + 20 * 50 /2 > 10*PI");
@@ -35,11 +36,12 @@ int main() {
     **  As you can see in the 'result_c_str()' There are some flags you can set to control the output
     **  this flags are only valid in 'result_s()' and 'result_c_str()'
     **      calc_formula        -   Display the formula with the results
+    **      calc_noresult       -   Do not output the result
     **      calc_noerror        -   Do not show error msg
     **      calc_noformat       -   Do not Comma Separate (i.e from 1000 to 1,000)
     **      calc_numtruefalse   -   Represent True/False as Number not text
+    **      calc_formulaonly    -   Only the formula (sets calc_formula and calc_noresult)
     */
-
 
     /**
     **  Next lets reuse the Calc instance and make it evaluate a new formula
