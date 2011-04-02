@@ -48,7 +48,6 @@ using namespace std;
     #pragma warning( disable : 4127 )   //conditional exp?? :S..
     #pragma warning( disable : 4365 )   //signed/unsigned
     #pragma warning( disable : 4820 )   //padding?..
-    #pragma warning( disable : 4996 )   //strcpy not safe
 #endif
 
 
@@ -341,16 +340,16 @@ public:
      */
     string duration(int);
 private:
-    enum FunkiiCalcErrors_t mError;   /* Error String. */
-    long double mResult;        /* Result of the Formula. */
-    string mFormula;            /* Sanity Checked Formula. */
+    enum FunkiiCalcErrors_t mError; /* Error String. */
+    long double mResult;            /* Result of the Formula. */
+    string mFormula;                /* Sanity Checked Formula. */
             /* Comparison Global Vars */
-    bool mIsCompare;            /* Flag to determine if it's a comparison Formula i.e: 3 > 2 */
-    bool mCompare[1000];        /* List of Comparison Results */
-    vector<string> mList;       /* List of Comparison Formulas */
-    string mOutput;             /* Comparison Output Message. */
-    string mCompOutputRes;      /* Comparison Result. */
-    long double mCompRes[1000]; /* List of each Option for comparison Results */
+    bool mIsCompare;                /* Flag to determine if it's a comparison Formula i.e: 3 > 2 */
+    bool mCompare[1000];            /* List of Comparison Results */
+    vector<string> mList;           /* List of Comparison Formulas */
+    string mOutput;                 /* Comparison Output Message. */
+    string mCompOutputRes;          /* Comparison Result. */
+    long double mCompRes[1000];     /* List of each Option for comparison Results */
     static const char *func_array[];
 
     /**
@@ -512,13 +511,13 @@ const char *Calc::func_array[] = {  "sqrt", "floor","ceil", "sin",  "cos",
                                     "fabs", "bin",  "oct",  "hex",  "round",
                                     "fact"
                                 };
-Calc::Calc() {  assign("0"); }
+Calc::Calc() { assign("0"); }
 Calc::Calc(string formula) { assign(formula); }
 Calc::Calc(int number) { assign(number); }
 Calc::Calc(float number) { assign(number); }
 Calc::Calc(double number) { assign(number); }
 Calc::Calc(long double number) { assign(number); }
-Calc::~Calc() { }
+Calc::~Calc() { /* NOTHING YET */ }
 void Calc::assign(string formula) { calcthis(formula); }
 void Calc::assign(int number) { stringstream ss; ss << number; calcthis(ss.str()); }
 void Calc::assign(float number) { stringstream ss; ss << number; calcthis(ss.str()); }
@@ -527,7 +526,7 @@ void Calc::assign(long double number) { stringstream ss; ss << setprecision(15) 
 void Calc::calcthis(string formula) {
     C_DBG_INIT;
     C_DBG_START;
-    mError = CE_NADA; mFormula.clear(); mResult=0; mIsCompare=false;
+    mError = CE_NADA; mFormula.clear(); mResult=0; mIsCompare=false; errno = 0;
     if ( syntax(formula) ) {
         C_DBG_MSG("oo, you returned '%s' ",mFormula.c_str());
         int e = mFormula.find("="), g = mFormula.find_first_of(">"), l = mFormula.find_first_of("<");
@@ -609,7 +608,8 @@ bool Calc::syntax(string formula) {
     string tmp;
     int found = formula.find_last_of(';');
     if (found > 0) { formula = parse_vars(found, formula); }
-    int p=0, type=0; //Type 0=dec ; 1=bin ; 2=oct ; 3=hex;
+    int p=0, type=0;    //Type 0=dec ; 1=bin ; 2=oct ; 3=hex;
+    bool yes_p=false;   //flag that tells me if the formula has parentheses
     tmp.assign(formula); formula.clear();
     C_DBG_MSG("\tBefore:: %s",tmp.c_str());
     //Clean up the Formula: Make all Lowercase, Remove Spaces and make sure it's all valid chars.
@@ -700,6 +700,7 @@ bool Calc::syntax(string formula) {
         //check if theres a syntax error.. like "3+*2" or "12*-3" or "6>*2"
         for (int i = 0; i < (int)formula.length() - 1; i++) {
             C_DBG_MSG("[%d] %c::\ti+1 : %c",i,formula.at(i),formula.at(i+1));
+            if (formula.at(i) == '(') { yes_p = true; }
             //while here lets check if theres an empty pair of parenthesis
             if (formula.at(i) == '(' && formula.at(i+1) == ')') {
                 mError = CE_SYN_EMPTY_PAR;
@@ -711,33 +712,61 @@ bool Calc::syntax(string formula) {
                 formula.at(i) == '%' || formula.at(i) == '^' ||
                 formula.at(i) == '>' ||
                 formula.at(i) == '<' || formula.at(i) == '=') {
-                    if ((i+2) < (int)formula.length()) {
-                        if (formula.at(i+1) == '-' &&
-                            (((int)formula.at(i+2) >= 48 && (int)formula.at(i+2) <= 57) ||
-                            ((int)formula.at(i+2) >= 97 && (int)formula.at(i+2) <= 122) ||
-                             formula.at(i+2) == '(')) {
-                                i+=2; continue; //all is ok
-                        }
+
+                if ((i+2) < (int)formula.length()) {
+                    if (formula.at(i+1) == '-' &&
+                        (((int)formula.at(i+2) >= 48 && (int)formula.at(i+2) <= 57) ||
+                        ((int)formula.at(i+2) >= 97 && (int)formula.at(i+2) <= 122) ||
+                        formula.at(i+2) == '(')) {
+                            i+=2; continue; //all is ok
                     }
-                    if (formula.at(i+1) != '(' &&
-                            !((int)formula.at(i+1) >= 48 && (int)formula.at(i+1) <= 57) &&
-                            !((int)formula.at(i+1) >= 97 && (int)formula.at(i+1) <= 122)
-                            ) {
-                                if (formula.at(i) == '>' &&
-                                    (formula.at(i+1) == '='|| formula.at(i+1) == '>')) { i++; continue; }
-                                else if (formula.at(i) == '<' &&
-                                    (formula.at(i+1) == '=' ||
-                                     formula.at(i+1) == '>' ||
-                                     formula.at(i+1) == '<')) { i++; continue; }
-                                else if (formula.at(i) == '=' && formula.at(i+1) == '=') { i++; continue; }
-                                else {
-                                    mError = CE_SYNTAX;
-                                    C_DBG_END;
-                                    return false;
-                                }
-                     }
+                }
+                if (formula.at(i+1) != '(' &&
+                    !((int)formula.at(i+1) >= 48 && (int)formula.at(i+1) <= 57) &&
+                    !((int)formula.at(i+1) >= 97 && (int)formula.at(i+1) <= 122)
+                    ) {
+                        if ((formula.at(i) == '>') &&
+                            (formula.at(i+1) == '=' || formula.at(i+1) == '>')
+                           ) { i++; continue; }
+                        else if ((formula.at(i) == '<' && formula.at(i-1) != '<') &&
+                            (formula.at(i+1) == '=' ||
+                             formula.at(i+1) == '>' ||
+                             formula.at(i+1) == '<') ) { i++; continue; }
+                        else if (formula.at(i) == '=' && formula.at(i+1) == '=') { i++; continue; }
+                        else {
+                            mError = CE_SYNTAX;
+                            C_DBG_END;
+                            return false;
+                        }
+                }
+                if (formula.at(i) == '=' || formula.at(i) == '<' || formula.at(i) == '>') {
+                    if ( (formula.at(i-1) == '=' || formula.at(i-1) == '<' || formula.at(i-1) == '>')) {
+                        mError = CE_SYNTAX;
+                        C_DBG_END;
+                        return false;
+                    }
+                }
             }
         }
+        /*formula.at(i-1) != '>'
+        if (yes_p) { //issue 2 :: check for things like (1 < 2) + 3
+            int c=0,p=0, p1=0, p2=0;
+            bool comp[];
+            for (int i = 0; i < (int)formula.length(); i++) {
+                if (formula.at(i) != '(' && p == 0) { p1=i; p++; }
+                else if (formula.at(i) != ')') {
+                    p--;
+                    if (p==0) { p2=i; }
+                }
+                else if (p > 0 &&
+                    (formula.at(i) == '>' ||
+                     formula.at(i) == '<' ||
+                     formula.at(i+1) == '=' )) { comp = true; }
+
+
+            }
+        }
+        //*/
         //we've reached the end! this Formula seems valid :D
         C_DBG_MSG("Final Product!! :: '%s'",formula.c_str());
         mFormula = formula;
