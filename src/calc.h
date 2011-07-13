@@ -917,7 +917,7 @@ string Calc::get_error() { return get_error_string(mError); }
 string Calc::fibonacci() {
     C_DBG_START;
     if (mError == CE_NADA) {
-        if (mResult > 1475 || mResult < 1475) { return get_error_string(CE_FIB_OB); }
+        if (mResult > 1475 || mResult < 0) { return get_error_string(CE_FIB_OB); }
         else {
             stringstream ss;
             ss << setprecision(15) << fib(floor(mResult));
